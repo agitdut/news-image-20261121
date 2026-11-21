@@ -54,179 +54,287 @@ CNN, Investopedia, TradingView):
 
 from PIL import Image, ImageDraw, ImageFont
 
-W, H = 1024, 1024
-PAPER = (246, 241, 230)
-INK = (26, 26, 26)
-RED = (163, 18, 18)
-BLUE = (29, 78, 137)
-GREY = (90, 86, 78)
-LIGHT = (232, 226, 212)
-SERIF = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
-SERIF_B = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-SANS_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+PAGE_W, PAGE_H = 1024, 1024
+MARGIN = 28
+RIGHT = 996
+
+PALETTE = {
+    "paper": (246, 241, 230),
+    "ink": (26, 26, 26),
+    "red": (163, 18, 18),
+    "blue": (29, 78, 137),
+    "grey": (90, 86, 78),
+    "wash": (232, 226, 212),
+}
+
+FONT_DIR = "/usr/share/fonts/truetype/dejavu/"
 
 
-def font(path, size):
-    return ImageFont.truetype(path, size)
+class Typefaces:
+    """Lazy loader for the four DejaVu faces used on the page."""
+
+    _cache = {}
+
+    @classmethod
+    def get(cls, filename, size):
+        key = (filename, size)
+        if key not in cls._cache:
+            cls._cache[key] = ImageFont.truetype(FONT_DIR + filename, size)
+        return cls._cache[key]
+
+    @classmethod
+    def serif_bold(cls, size):
+        return cls.get("DejaVuSerif-Bold.ttf", size)
+
+    @classmethod
+    def sans(cls, size):
+        return cls.get("DejaVuSans.ttf", size)
+
+    @classmethod
+    def sans_bold(cls, size):
+        return cls.get("DejaVuSans-Bold.ttf", size)
 
 
-def wrap(draw, text, fnt, width):
-    """Greedy word wrap; returns a list of lines fitting width."""
-    lines, cur = [], ""
+def split_lines(draw, text, face, max_width):
+    """Greedy word wrap; returns the lines that fit inside max_width.
+
+    A single word wider than the column is hard-split so it can never
+    overflow the box it is drawn in.
+    """
+    lines, current = [], ""
     for word in text.split():
-        trial = (cur + " " + word).strip()
-        if draw.textlength(trial, font=fnt) <= width:
-            cur = trial
+        while draw.textlength(word, font=face) > max_width:
+            cut = 1
+            while (cut < len(word)
+                   and draw.textlength(word[:cut + 1], font=face) <= max_width):
+                cut += 1
+            lines.append(word[:cut])
+            word = word[cut:]
+        candidate = (current + " " + word).strip()
+        if draw.textlength(candidate, font=face) <= max_width:
+            current = candidate
         else:
-            if cur:
-                lines.append(cur)
-            cur = word
-    if cur:
-        lines.append(cur)
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
     return lines
 
 
-def para(draw, x, y, text, fnt, width, leading=25, fill=INK):
-    """Draw a wrapped paragraph; return the y just below it."""
-    for line in wrap(draw, text, fnt, width):
-        draw.text((x, y), line, font=fnt, fill=fill)
-        y += leading
-    return y
+class Canvas:
+    """A 1024x1024 front page plus the small drawing vocabulary it needs."""
+
+    def __init__(self):
+        self.image = Image.new("RGB", (PAGE_W, PAGE_H), PALETTE["paper"])
+        self.draw = ImageDraw.Draw(self.image)
+        self.draw.rectangle([0, 0, PAGE_W - 1, PAGE_H - 1],
+                            outline=PALETTE["ink"], width=4)
+
+    def hline(self, y, x0=MARGIN, x1=RIGHT, weight=2, colour=None):
+        self.draw.line([(x0, y), (x1, y)],
+                       fill=colour or PALETTE["ink"], width=weight)
+
+    def text_block(self, x, y, text, face, max_width, leading, colour=None):
+        """Draw wrapped text; return the y just below the last line."""
+        fill = colour or PALETTE["ink"]
+        for line in split_lines(self.draw, text, face, max_width):
+            self.draw.text((x, y), line, font=face, fill=fill)
+            y += leading
+        return y
+
+    def label(self, x, y, text, colour=None, size=17):
+        """Small bold uppercase kicker; returns the y below it."""
+        self.draw.text((x, y), text, font=Typefaces.sans_bold(size),
+                       fill=colour or PALETTE["red"])
+        return y + 24
+
+    def title(self, x, y, text, max_width, size=33, leading=40):
+        """Bold serif headline; returns the y below it."""
+        return self.text_block(x, y, text, Typefaces.serif_bold(size),
+                               max_width, leading)
+
+    def save(self, path="entry.png"):
+        self.image.save(path, optimize=True)
+        print("wrote", path, self.image.size)
 
 
-def rule(draw, x0, y, x1, width=2, fill=INK):
-    draw.line([(x0, y), (x1, y)], fill=fill, width=width)
+# ---------------------------------------------------------------- content
+
+LEAD = {
+    "label": "KYIV  \u00b7  AND POLAND",
+    "title": "Russia\u2019s biggest barrage hits Kyiv \u2014 and lands in Poland",
+    "body": (
+        "More than 400 drones and 110 missiles rain down overnight, "
+        "27 of them ballistic; at least eight are killed in Kyiv as "
+        "bridges and the power grid are hit. Two Russian missiles and "
+        "a suspected drone then land in Poland \u2014 PM Donald Tusk "
+        "calls it an \u201cintentional provocation\u201d."
+    ),
+}
+
+COP_BOX = {
+    "label": "ANTALYA  \u00b7  CLIMATE TALKS",
+    "title": "COP31 stalls in overtime",
+    "body": (
+        "The draft deal strips out every mention of fossil fuels; "
+        "the $120bn adaptation target is dropped and the closing "
+        "plenary suspended. Addis Ababa hosts COP32 in 2027."
+    ),
+}
+
+FEATURES = [
+    ("NEW YORK  \u00b7  WALL STREET ROUT",
+     "AI rout puts S&P and Dow in correction",
+     "The S&P 500 falls 3.7% for a seventh straight loss; the "
+     "Nasdaq drops 5.28%, wiping out its 2026 gains."),
+    ("BRUSSELS  \u00b7  POST-BREXIT RESET",
+     "UK and EU sign biggest post-Brexit deals",
+     "PM Andy Burnham and EU leaders sign three agreements on food "
+     "exports, carbon markets and youth mobility."),
+    ("LONDON  \u00b7  HEALTH",
+     "Pill makes pancreatic cancer undetectable",
+     "A trial of daraxonrasib leaves tumours undetectable on scans "
+     "in one in 12 patients."),
+]
+
+BRIEF_COLUMNS = [
+    ("EUROPE & THE WAR", [
+        ("Zelensky calls Putin \u201cenemy and killer\u201d",
+         "after Trump calls him a friend."),
+        ("NATO jets scrambled over Poland",
+         "Polish F-16s and Swedish Gripens answer."),
+        ("France seeks a UN Security Council meeting",
+         "after strikes hit the Austrian embassy."),
+        ("Britain: Poland incursion \u201cutterly unacceptable\u201d",
+         "says PM Andy Burnham."),
+        ("Spain heads to a 29 November election",
+         "as the conservatives gain."),
+    ]),
+    ("THE GULF & BEYOND", [
+        ("Iran downs a US MQ-9 drone",
+         "over the Strait of Hormuz, the 58th."),
+        ("Lewis Pugh swims the Hormuz strait",
+         "to spotlight the war\u2019s toll on wildlife."),
+        ("Israeli strikes kill Palestinians in Gaza",
+         "as West Bank violence continues."),
+        ("Salvadoran troops in Haiti lose soldiers",
+         "to explosives in Port-au-Prince."),
+        ("Mongolia\u2019s president resigns",
+         "with elections due within four months."),
+    ]),
+    ("ALSO ON SATURDAY", [
+        ("Gen Z protests spread", "across 25 European countries."),
+        ("GTA 6 smashes records", "about $4.9bn in day-one sales."),
+        ("Palisades fire arsonist convicted",
+         "for the deadly Los Angeles blaze."),
+        ("FBI criminal database hacked",
+         "as US outages continue, reports say."),
+        ("EU approves \u20ac1bn defence aid for Ukraine",
+         "as Russia rejects any peace deal."),
+    ]),
+]
+
+MARKET_LINES = [
+    "S&P 500  6,910.42  \u22123.70%      Dow  48,147.33  \u22121.93%      "
+    "Nasdaq  22,617.73  \u22125.28%      VIX 35.89",
+    "Nvidia  \u221214%      Anthropic  \u22129% (day two, $88.91)      "
+    "Seventh straight loss; S&P and Dow in correction",
+]
 
 
-def kicker(draw, x, y, text, fill=RED, size=17):
-    draw.text((x, y), text, font=font(SANS_B, size), fill=fill)
-    return y + 24
+# ---------------------------------------------------------------- sections
+
+def render_masthead(page):
+    d = page.draw
+    d.text((512, 14), "THE WORLD IN ONE PAGE",
+           font=Typefaces.serif_bold(56), fill=PALETTE["ink"], anchor="ma")
+    d.text((512, 78),
+           "SATURDAY  \u00b7  21 NOVEMBER 2026  \u00b7  ONE DAY, ONE PICTURE",
+           font=Typefaces.sans_bold(19), fill=PALETTE["red"], anchor="ma")
+    page.hline(110, weight=3)
 
 
-def headline(draw, x, y, text, width, size=33, leading=40):
-    fnt = font(SERIF_B, size)
-    for line in wrap(draw, text, fnt, width):
-        draw.text((x, y), line, font=fnt, fill=INK)
-        y += leading
-    return y
+def render_lead_and_cop(page):
+    y = page.label(MARGIN, 122, LEAD["label"])
+    y = page.title(MARGIN, y, LEAD["title"], 600, size=32, leading=38)
+    page.text_block(MARGIN, y + 4, LEAD["body"], Typefaces.sans(17), 600, 22)
+    page.hline(348)
+
+    page.draw.rectangle([664, 122, RIGHT, 336], outline=PALETTE["red"], width=3)
+    y2 = page.label(680, 134, COP_BOX["label"], size=16)
+    y2 = page.title(680, y2, COP_BOX["title"], 300, size=26, leading=32)
+    page.text_block(680, y2 + 4, COP_BOX["body"], Typefaces.sans(15), 300, 20)
+
+
+def render_features(page):
+    box_w, gap = 310, 19
+    for i, (kick, head, body) in enumerate(FEATURES):
+        x0 = MARGIN + i * (box_w + gap)
+        page.draw.rectangle([x0, 352, x0 + box_w, 566],
+                            outline=PALETTE["ink"], width=2)
+        yy = page.label(x0 + 14, 364, kick, colour=PALETTE["blue"], size=14)
+        yy = page.title(x0 + 14, yy, head, box_w - 28, size=24, leading=30)
+        page.text_block(x0 + 14, yy + 4, body, Typefaces.sans(16),
+                        box_w - 28, 22)
+
+
+def render_brief_column(page, x0, heading, items, col_w):
+    """One of the three 'world in brief' columns."""
+    page.draw.text((x0, 626), heading,
+                   font=Typefaces.sans_bold(16), fill=PALETTE["blue"])
+    yy = 652
+    for head, tail in items:
+        yy = page.text_block(x0, yy, "\u2022  " + head + " \u2014 " + tail,
+                             Typefaces.sans(15), col_w, 20)
+        yy += 6
+    return yy
+
+
+def render_brief(page):
+    page.hline(584)
+    page.draw.text((MARGIN, 594), "THE WORLD IN BRIEF",
+                   font=Typefaces.sans_bold(18), fill=PALETTE["red"])
+    col_w, gap = 310, 19
+    for i, (heading, items) in enumerate(BRIEF_COLUMNS):
+        render_brief_column(page, MARGIN + i * (col_w + gap),
+                            heading, items, col_w)
+
+
+def render_markets(page):
+    page.draw.rectangle([MARGIN, 894, RIGHT, 962], fill=PALETTE["wash"],
+                        outline=PALETTE["ink"], width=2)
+    page.draw.text((44, 902), "FRIDAY\u2019S MARKETS \u2014 THE AI ROUT DEEPENS",
+                   font=Typefaces.sans_bold(16), fill=PALETTE["red"])
+    for i, line in enumerate(MARKET_LINES):
+        page.draw.text((44, 924 + i * 20), line,
+                       font=Typefaces.sans(15), fill=PALETTE["ink"])
+
+
+def render_footer(page):
+    page.hline(974)
+    page.draw.text((MARGIN, 984),
+                   "Sources: AP, Reuters, BBC, Le Monde, CNN, Investopedia. "
+                   "Every story was reported on 21 November 2026.",
+                   font=Typefaces.sans(14), fill=PALETTE["grey"])
+    page.draw.text((MARGIN, 1002),
+                   "Drawn in code with Pillow  \u00b7  make.fun news-image-20261121",
+                   font=Typefaces.sans(14), fill=PALETTE["grey"])
+
+
+def build_page():
+    page = Canvas()
+    render_masthead(page)
+    render_lead_and_cop(page)
+    render_features(page)
+    render_brief(page)
+    render_markets(page)
+    render_footer(page)
+    return page
 
 
 def main():
-    img = Image.new("RGB", (W, H), PAPER)
-    d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W - 1, H - 1], outline=INK, width=4)
-
-    # ---- Masthead ----
-    d.text((512, 14), "THE WORLD IN ONE PAGE", font=font(SERIF_B, 56),
-           fill=INK, anchor="ma")
-    d.text((512, 78), "SATURDAY  \u00b7  21 NOVEMBER 2026  \u00b7  ONE DAY, ONE PICTURE",
-           font=font(SANS_B, 19), fill=RED, anchor="ma")
-    rule(d, 28, 110, 996, 3)
-
-    # ---- Lead: Kyiv / Poland (left) + COP31 box (right) ----
-    y = kicker(d, 28, 122, "KYIV  \u00b7  AND POLAND")
-    y = headline(d, 28, y, "Russia\u2019s biggest barrage hits Kyiv \u2014 and lands in Poland", 600, 32, 38)
-    y = para(d, 28, y + 4,
-             "More than 400 drones and 110 missiles rain down overnight, "
-             "27 of them ballistic; at least eight are killed in Kyiv as "
-             "bridges and the power grid are hit. Two Russian missiles and "
-             "a suspected drone then land in Poland \u2014 PM Donald Tusk "
-             "calls it an \u201cintentional provocation\u201d.",
-             font(SANS, 17), 600, 22)
-    rule(d, 28, 348, 996, 2)
-
-    # ---- COP31 box ----
-    d.rectangle([664, 122, 996, 336], outline=RED, width=3)
-    y2 = kicker(d, 680, 134, "ANTALYA  \u00b7  CLIMATE TALKS", fill=RED, size=16)
-    y2 = headline(d, 680, y2, "COP31 stalls in overtime", 300, 26, 32)
-    y2 = para(d, 680, y2 + 4,
-              "The draft deal strips out every mention of fossil fuels; "
-              "the $120bn adaptation target is dropped and the closing "
-              "plenary suspended. Addis Ababa hosts COP32 in 2027.",
-              font(SANS, 15), 300, 20)
-
-    # ---- Three feature boxes ----
-    boxes = [
-        ("NEW YORK  \u00b7  WALL STREET ROUT",
-         "AI rout puts S&P and Dow in correction",
-         "The S&P 500 falls 3.7% for a seventh straight loss; the "
-         "Nasdaq drops 5.28%, wiping out its 2026 gains."),
-        ("BRUSSELS  \u00b7  POST-BREXIT RESET",
-         "UK and EU sign biggest post-Brexit deals",
-         "PM Andy Burnham and EU leaders sign three agreements on food "
-         "exports, carbon markets and youth mobility."),
-        ("LONDON  \u00b7  HEALTH",
-         "Pill makes pancreatic cancer undetectable",
-         "A trial of daraxonrasib leaves tumours undetectable on scans "
-         "in one in 12 patients."),
-    ]
-    bx, bw, gap = 28, 310, 19
-    for i, (kick, head, body) in enumerate(boxes):
-        x0 = bx + i * (bw + gap)
-        d.rectangle([x0, 352, x0 + bw, 566], outline=INK, width=2)
-        yy = kicker(d, x0 + 14, 364, kick, fill=BLUE, size=14)
-        yy = headline(d, x0 + 14, yy, head, bw - 28, 24, 30)
-        para(d, x0 + 14, yy + 4, body, font(SANS, 16), bw - 28, 22)
-
-    # ---- Three columns of short items ----
-    rule(d, 28, 584, 996, 2)
-    d.text((28, 594), "THE WORLD IN BRIEF", font=font(SANS_B, 18), fill=RED)
-    cols = [
-        ("EUROPE & THE WAR", [
-            ("Zelensky calls Putin \u201cenemy and killer\u201d", "after Trump calls him a friend."),
-            ("NATO jets scrambled over Poland", "Polish F-16s and Swedish Gripens answer."),
-            ("France seeks a UN Security Council meeting", "after strikes hit the Austrian embassy."),
-            ("Britain: Poland incursion \u201cutterly unacceptable\u201d", "says PM Andy Burnham."),
-            ("Spain heads to a 29 November election", "as the conservatives gain."),
-        ]),
-        ("THE GULF & BEYOND", [
-            ("Iran downs a US MQ-9 drone", "over the Strait of Hormuz, the 58th."),
-            ("Lewis Pugh swims the Hormuz strait", "to spotlight the war\u2019s toll on wildlife."),
-            ("Israeli strikes kill Palestinians in Gaza", "as West Bank violence continues."),
-            ("Salvadoran troops in Haiti lose soldiers", "to explosives in Port-au-Prince."),
-            ("Mongolia\u2019s president resigns", "with elections due within four months."),
-        ]),
-        ("ALSO ON SATURDAY", [
-            ("Gen Z protests spread", "across 25 European countries."),
-            ("GTA 6 smashes records", "about $4.9bn in day-one sales."),
-            ("Palisades fire arsonist convicted", "for the deadly Los Angeles blaze."),
-            ("FBI criminal database hacked", "as US outages continue, reports say."),
-            ("EU approves \u20ac1bn defence aid for Ukraine", "as Russia rejects any peace deal."),
-        ]),
-    ]
-    cx, cw = 28, 310
-    for i, (title, items) in enumerate(cols):
-        x0 = cx + i * (cw + 19)
-        d.text((x0, 626), title, font=font(SANS_B, 16), fill=BLUE)
-        yy = 652
-        for head, tail in items:
-            yy = para(d, x0, yy, "\u2022  " + head + " \u2014 " + tail,
-                      font(SANS, 15), cw, 20)
-            yy += 6
-
-    # ---- Markets strip (Friday's closes) ----
-    d.rectangle([28, 894, 996, 962], fill=LIGHT, outline=INK, width=2)
-    d.text((44, 902), "FRIDAY\u2019S MARKETS \u2014 THE AI ROUT DEEPENS",
-           font=font(SANS_B, 16), fill=RED)
-    d.text((44, 924),
-           "S&P 500  6,910.42  \u22123.70%      Dow  48,147.33  \u22121.93%      Nasdaq  22,617.73  \u22125.28%      VIX 35.89",
-           font=font(SANS, 15), fill=INK)
-    d.text((44, 944),
-           "Nvidia  \u221214%      Anthropic  \u22129% (day two, $88.91)      Seventh straight loss; S&P and Dow in correction",
-           font=font(SANS, 15), fill=INK)
-
-    # ---- Footer ----
-    rule(d, 28, 974, 996, 2)
-    d.text((28, 984),
-           "Sources: AP, Reuters, BBC, Le Monde, CNN, Investopedia. Every story was reported on 21 November 2026.",
-           font=font(SANS, 14), fill=GREY)
-    d.text((28, 1002),
-           "Drawn in code with Pillow  \u00b7  make.fun news-image-20261121",
-           font=font(SANS, 14), fill=GREY)
-
-    img.save("entry.png", optimize=True)
-    print("wrote entry.png", img.size)
+    build_page().save("entry.png")
 
 
 if __name__ == "__main__":

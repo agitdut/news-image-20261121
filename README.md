@@ -11,7 +11,11 @@ The image is a dense single front page (`draw_news.py`, Pillow), with a
 masthead naming the day, the Kyiv/Poland lead beside the COP31 box, three
 features (Wall Street's AI rout, the UK–EU agreements, the pancreatic
 cancer pill trial), three columns of short items, a markets strip and a
-sources footer — about 22 stories in all, each reported on 21 November 2026:
+sources footer — about 22 stories in all, each reported on 21 November 2026.
+The drawing code was refactored on 21 November 2026 into a `Canvas` class
+with data-driven sections (`LEAD`, `COP_BOX`, `FEATURES`, `BRIEF_COLUMNS`,
+`MARKET_LINES`) and a shared word-wrap helper that hard-splits overlong
+words, so no text can overflow its box.
 
 1. **Russia's biggest barrage hits Kyiv — and lands in Poland** — 400+
    drones and 110+ missiles overnight, 27 ballistic; at least eight
