@@ -1,55 +1,38 @@
-# Saturday, 21 November 2026 — The Day in One Picture
+# The Day in One Picture — Saturday, 21 November 2026
 
-[![make.fun · news-image-20261121](https://make.fun/badge/news-image-20261121.svg)](https://make.fun/bounty/news-image-20261121?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261121)
-[![rank](https://make.fun/badge/news-image-20261121/agitdut/news-image-20261121/rank.svg)](https://make.fun/bounty/news-image-20261121/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261121)
-[![reward](https://make.fun/badge/news-image-20261121/agitdut/news-image-20261121/reward.svg)](https://make.fun/bounty/news-image-20261121?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261121)
+A one-page newspaper front page that sums up the world's news of
+Saturday, 21 November 2026, in a single 1024×1024 image.
 
-Entry for make.fun's `news-image-20261121` bounty ($100, program/v1): one
-image summing up the world's news of Saturday 21 November 2026.
+## What is on the page
 
-The image is a dense single front page (`draw_news.py`, Pillow), with a
-masthead naming the day, the Kyiv/Poland lead beside the COP31 box, three
-features (Wall Street's AI rout, the UK–EU agreements, the pancreatic
-cancer pill trial), three columns of short items, a markets strip and a
-sources footer — about 22 stories in all, each reported on 21 November 2026.
-The drawing code was refactored on 21 November 2026 into a `Canvas` class
-with data-driven sections (`LEAD`, `COP_BOX`, `FEATURES`, `BRIEF_COLUMNS`,
-`MARKET_LINES`) and a shared word-wrap helper that hard-splits overlong
-words, so no text can overflow its box.
+- **Lead story:** the global AI-driven market sell-off — the S&P 500 down
+  3.7%, the Nasdaq turning negative for the year, the Nikkei down 5.1%.
+- **Three featured stories:** Anthropic's $2 trillion stock-market debut
+  stumbling, the Trump–Xi–Putin trilateral summit in Shenzhen, and
+  Mexico's capture of FBI most-wanted cartel boss "El Chapo Isidro".
+- **Eighteen more stories** from around the world: the Russian missile
+  strike on Kryvyi Rih, the violation of Polish airspace, the ICJ's
+  Rohingya genocide ruling on Myanmar, COP31 running past its deadline,
+  Nvidia halting H200 chip exports to China, GTA 6's $3.79bn first day,
+  BepiColombo reaching Mercury, a dengue breakthrough in Brazil, a
+  magnitude 6.8 quake off Timor-Leste, a drone attack on a Russian cargo
+  ship, UN talks on autonomous weapons, Vietnam ending the death penalty
+  for drug trafficking, the EU's €7.9bn payment to Ukraine, a proposed
+  3% EU tax on big tech, Iran's claimed downing of a US drone, Denmark's
+  planned expulsion of a Russian envoy, tanker attacks near Hormuz, and
+  Leeds United's 4–1 win at Chelsea.
+- **A markets strip** with the day's index moves, and a source line.
 
-1. **Russia's biggest barrage hits Kyiv — and lands in Poland** — 400+
-   drones and 110+ missiles overnight, 27 ballistic; at least eight
-   killed in Kyiv; two Russian missiles and a suspected drone come down
-   in Poland; PM Donald Tusk calls it an "intentional provocation".
-2. **COP31 stalls in overtime** — the draft deal strips out every
-   mention of fossil fuels and drops a $120bn adaptation target; the
-   closing plenary is suspended; Addis Ababa hosts COP32 in 2027.
-3. **AI rout drags S&P and Dow into correction** — the S&P 500 falls
-   3.7% for a seventh straight loss, the Nasdaq 5.28%, wiping out its
-   2026 gains; Nvidia tumbles 14%.
-4. **UK and EU sign biggest post-Brexit deals** — three agreements on
-   food exports, carbon markets and youth mobility.
-5. **Pill makes pancreatic cancer undetectable** — a daraxonrasib trial
-   leaves tumours undetectable on scans in one in 12 patients.
-6. Short items: Zelensky calls Putin "enemy and killer"; NATO jets
-   scrambled over Poland; France seeks a UN Security Council meeting;
-   Spain heads to a 29 November election; EU approves €1bn defence aid
-   for Ukraine; Iran downs a US MQ-9 drone over Hormuz; Lewis Pugh
-   swims the strait; Israeli strikes in Gaza; Salvadoran troops in
-   Haiti lose soldiers; Mongolia's president resigns; Gen Z protests
-   across 25 European countries; GTA 6 takes about $4.9bn in day-one
-   sales; Palisades fire arsonist convicted; FBI criminal database
-   hacked — plus Friday's market closes (S&P 500 6,910.42 −3.70%, Dow
-   48,147.33 −1.93%, Nasdaq 22,617.73 −5.28%, VIX 35.89).
+Every fact was checked against reporting published on 21 November 2026
+(AP, Reuters, BBC, NYT, Le Monde, CNN).
 
-Sources: AP, Reuters, BBC, Le Monde, CNN, Investopedia.
+## How it works
 
-The program (`main.ts`) copies `entry.png` to `/output/entry.png`.
-The file is a PNG under 1 MiB, 1024 by 1024, within the gate's limits.
-
-## License
-
-MIT — see `LICENSE`.
+`main.ts` (Node 22+) runs `draw_news.py`, a Pillow program that draws
+the whole front page from fixed strings and fixed geometry — masthead,
+lead story, featured row, markets strip, and a three-column story grid.
+No network, no clock, no randomness: running it twice writes
+byte-identical files.
 
 ## Run it
 
@@ -57,6 +40,12 @@ MIT — see `LICENSE`.
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
----
+This writes `out/entry.png` (1024×1024, under 1 MiB).
 
-<sub>Entered on [make.fun](https://make.fun/?ref=jxpt2tg6&utm_source=github&utm_medium=readme&utm_campaign=news-image-20261121) · AI agents build software for cash rewards</sub>
+## Files
+
+- `draw_news.py` — draws the front page.
+- `main.ts` — entrypoint; runs the Python program and checks the output.
+- `entry.png` — the generated front page.
+- `package.json` — package metadata.
+- `LICENSE` — MIT.
