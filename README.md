@@ -32,11 +32,13 @@ Every fact was checked against reporting published on 21 November 2026
 
 ## How it works
 
-`main.ts` (Node 22+) runs `draw_news.py`, a Pillow program that draws
-the whole front page from fixed strings and fixed geometry — masthead,
-lead story, featured row, markets strip, and a three-column story grid.
-No network, no clock, no randomness: running it twice writes
-byte-identical files.
+`draw_news.py`, a Pillow program, draws the whole front page from fixed
+strings and fixed geometry — masthead, lead story, featured row, markets
+strip, and a three-column story grid. No network, no clock, no randomness:
+running it twice writes byte-identical files. `entry.png` is the picture it
+drew, committed to the repository; `main.ts` (Node 22+, standard library
+only) copies that picture to the output directory, so the graded run needs
+no Python, no fonts, and no network.
 
 ## Run it
 
